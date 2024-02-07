@@ -3,12 +3,16 @@ package org.example.httpClientDemo;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyManagementException;
@@ -21,23 +25,22 @@ public class Test04_https {
     public static Logger logger = new Logger(Test04_https.class);
 
     public static void main(String[] args) {
-        HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
         CloseableHttpClient httpClient = null;
-        HttpGet httpGet = new HttpGet("http://127.0.0.1:8081/hello");
         CloseableHttpResponse response = null;
+        HttpGet httpGet = new HttpGet("https://localhost:8080/hello");
 
         try {
-            String trustStorePath = "src/main/resources/weimin.p12";
-            String trustStorePassword = "weimin";
-            KeyStore trustStore = KeyStore.getInstance("PKCS12");
-            FileInputStream fis = new FileInputStream(trustStorePath);
-            trustStore.load(fis, trustStorePassword.toCharArray());
-
-            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            KeyStore ks = KeyStore.getInstance("JKS");
+            File trustFile = new File("src/main/resources/server.jks");
+            ks.load(new FileInputStream(trustFile), "123456".toCharArray());
+            tmf.init(ks);
+            sslContext.init(null, tmf.getTrustManagers(), null);
+            SSLSocketFactory sf = new SSLSocketFactory(sslContext);
+            sf.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
 
-            httpClient = httpClientBuilder.setSSLContext(sslContext).build();
+            httpClient = HttpClients.custom().setSSLSocketFactory(sf).build();
 
             response = httpClient.execute(httpGet);
             HttpEntity entity = response.getEntity();
